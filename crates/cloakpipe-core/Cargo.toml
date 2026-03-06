@@ -26,8 +26,12 @@ tempfile = "3"
 
 [features]
 default = []
-ner = ["dep:ort"]
+ner = ["dep:ort", "dep:tokenizers"]
 
 [dependencies.ort]
+workspace = true
+optional = true
+
+[dependencies.tokenizers]
 workspace = true
 optional = true

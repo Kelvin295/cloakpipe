@@ -41,6 +41,7 @@ rand = "0.8"
 # Pattern matching + NER
 regex = "1"
 ort = "2.0.0-rc.12"
+tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
 
 # Logging + tracing
 tracing = "0.1"
