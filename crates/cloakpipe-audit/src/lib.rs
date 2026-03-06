@@ -4,6 +4,8 @@
 //! debugging, and monitoring. Logs contain metadata only — never raw
 //! sensitive values.
 
+pub mod sqlite;
+
 use anyhow::{Context, Result};
 use chrono::Utc;
 use serde::Serialize;
