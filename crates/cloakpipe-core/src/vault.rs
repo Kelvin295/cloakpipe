@@ -249,7 +249,8 @@ impl Vault {
     /// Encrypt plaintext with AES-256-GCM. Output: 12-byte nonce || ciphertext.
     fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>> {
         let cipher =
-            Aes256Gcm::new_from_slice(&self.key.0).context("Invalid AES-256-GCM key")?;
+            Aes256Gcm::new_from_slice(&self.key.0)
+                .map_err(|_| anyhow::anyhow!("Invalid AES-256-GCM key"))?;
 
         let mut nonce_bytes = [0u8; 12];
         OsRng.fill_bytes(&mut nonce_bytes);
@@ -271,7 +272,8 @@ impl Vault {
             bail!("Vault data too short — corrupted or wrong format");
         }
 
-        let cipher = Aes256Gcm::new_from_slice(key).context("Invalid AES-256-GCM key")?;
+        let cipher = Aes256Gcm::new_from_slice(key)
+            .map_err(|_| anyhow::anyhow!("Invalid AES-256-GCM key"))?;
         let nonce = Nonce::from_slice(&data[..12]);
         let ciphertext = &data[12..];
 
