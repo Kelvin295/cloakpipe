@@ -6,6 +6,9 @@ use serde::{Deserialize, Serialize};
 pub struct CloakPipeConfig {
     pub proxy: ProxyConfig,
     pub vault: VaultConfig,
+    /// Industry profile for smart detection defaults (general, legal, healthcare, fintech).
+    #[serde(default)]
+    pub profile: Option<String>,
     pub detection: DetectionConfig,
     #[serde(default)]
     pub tree: TreeConfig,

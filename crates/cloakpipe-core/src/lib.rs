@@ -12,6 +12,7 @@ pub mod vault;
 pub mod vault_sqlite;
 pub mod rehydrator;
 pub mod config;
+pub mod profiles;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

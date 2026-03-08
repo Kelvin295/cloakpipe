@@ -187,6 +187,117 @@ pub async fn init() -> Result<()> {
     Ok(())
 }
 
+/// Interactive guided setup.
+pub async fn setup() -> Result<()> {
+    use cloakpipe_core::profiles::IndustryProfile;
+    use dialoguer::{Select, Confirm};
+
+    println!("CloakPipe Setup\n");
+
+    // 1. Industry profile
+    let profiles = IndustryProfile::all();
+    let _profile_names: Vec<&str> = profiles.iter().map(|p| p.name()).collect();
+    let profile_descriptions = [
+        "General — balanced defaults for most use cases",
+        "Legal — NER for names, case numbers, SSNs; preserves numeric reasoning",
+        "Healthcare — HIPAA-aware: MRN, NPI, DEA numbers; NER for patient names",
+        "Fintech — financial data, SWIFT/ISIN/IBAN; IP and internal URL detection",
+    ];
+
+    let profile_idx = Select::new()
+        .with_prompt("What industry are you in?")
+        .items(&profile_descriptions)
+        .default(0)
+        .interact()?;
+    let profile = profiles[profile_idx];
+
+    // 2. Upstream provider
+    let upstreams = [
+        "OpenAI (https://api.openai.com)",
+        "Azure OpenAI",
+        "Anthropic (https://api.anthropic.com)",
+        "Ollama / local (http://localhost:11434)",
+        "Custom URL",
+    ];
+    let upstream_idx = Select::new()
+        .with_prompt("Which LLM provider?")
+        .items(&upstreams)
+        .default(0)
+        .interact()?;
+    let (upstream, api_key_env) = match upstream_idx {
+        0 => ("https://api.openai.com".to_string(), "OPENAI_API_KEY"),
+        1 => ("https://YOUR_RESOURCE.openai.azure.com".to_string(), "AZURE_OPENAI_API_KEY"),
+        2 => ("https://api.anthropic.com".to_string(), "ANTHROPIC_API_KEY"),
+        3 => ("http://localhost:11434".to_string(), "OLLAMA_API_KEY"),
+        _ => {
+            let url: String = dialoguer::Input::new()
+                .with_prompt("Enter upstream URL")
+                .interact_text()?;
+            (url, "API_KEY")
+        }
+    };
+
+    // 3. Vault backend
+    let backends = ["File (vault.enc)", "SQLite (vault.db)"];
+    let backend_idx = Select::new()
+        .with_prompt("Vault storage backend?")
+        .items(&backends)
+        .default(0)
+        .interact()?;
+    let (vault_backend, vault_path) = match backend_idx {
+        0 => ("file", "./vault.enc"),
+        _ => ("sqlite", "./vault.db"),
+    };
+
+    // 4. Audit logging
+    let audit_enabled = Confirm::new()
+        .with_prompt("Enable audit logging?")
+        .default(true)
+        .interact()?;
+
+    // Build config
+    let detection = profile.detection_config();
+    let mut config = default_config();
+    config.profile = Some(profile.name().to_string());
+    config.proxy.upstream = upstream;
+    config.proxy.api_key_env = api_key_env.into();
+    config.vault.backend = vault_backend.into();
+    config.vault.path = vault_path.into();
+    config.detection = detection;
+    config.audit = cloakpipe_core::config::AuditConfig {
+        enabled: audit_enabled,
+        ..Default::default()
+    };
+
+    let path = "cloakpipe.toml";
+    let toml_str = toml::to_string_pretty(&config)?;
+    std::fs::write(path, &toml_str)?;
+
+    println!("\nCreated {} with profile: {}", path, profile);
+    println!("\nNext steps:");
+    println!("  1. Set {} (your API key)", api_key_env);
+    println!("  2. Set CLOAKPIPE_VAULT_KEY=$(openssl rand -hex 32)");
+    println!("  3. Run: cloakpipe start");
+
+    Ok(())
+}
+
+/// Start as MCP server (stdio transport).
+pub async fn mcp(config_path: &str) -> Result<()> {
+    let config = if std::path::Path::new(config_path).exists() {
+        load_config(config_path)?
+    } else {
+        tracing::info!("No config file found, using defaults");
+        default_config()
+    };
+
+    let key = resolve_vault_key(&config)?;
+    let vault = cloakpipe_core::vault::Vault::open(&config.vault.path, key)?;
+    let detector = cloakpipe_core::detector::Detector::from_config(&config.detection)?;
+
+    cloakpipe_mcp::serve_stdio(config, detector, vault).await
+}
+
 /// CloakTree commands — vectorless document retrieval.
 pub async fn tree(config_path: &str, action: crate::TreeCommands) -> Result<()> {
     let config = if std::path::Path::new(config_path).exists() {
@@ -496,6 +607,7 @@ fn default_config() -> CloakPipeConfig {
             key_keyring: false,
             backend: "file".into(),
         },
+        profile: None,
         detection: cloakpipe_core::config::DetectionConfig {
             secrets: true,
             financial: true,

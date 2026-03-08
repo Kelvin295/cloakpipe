@@ -34,6 +34,10 @@ enum Commands {
     Stats,
     /// Initialize a new cloakpipe.toml config file
     Init,
+    /// Interactive guided setup (industry profiles, detection tuning)
+    Setup,
+    /// Start as an MCP server (for agent integrations)
+    Mcp,
     /// CloakTree: vectorless document retrieval
     Tree {
         #[command(subcommand)]
@@ -125,6 +129,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Test { text, file } => commands::test(&cli.config, text, file).await,
         Commands::Stats => commands::stats(&cli.config).await,
         Commands::Init => commands::init().await,
+        Commands::Setup => commands::setup().await,
+        Commands::Mcp => commands::mcp(&cli.config).await,
         Commands::Tree { action } => commands::tree(&cli.config, action).await,
         Commands::Vector { action } => commands::vector(action).await,
     }
