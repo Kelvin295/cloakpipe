@@ -13,7 +13,7 @@
 CloakPipe is a Rust-native privacy proxy for LLM and RAG pipelines. It sits between your application and any OpenAI-compatible API, automatically detecting sensitive entities, replacing them with consistent pseudonyms, and rehydrating responses -- so your LLM provider never sees real data.
 
 <p align="center">
-  <img src="assets/cloakpipe-demo.svg" alt="CloakPipe Demo" width="800">
+  <img src="assets/cloakpipe-demo.gif" alt="CloakPipe Demo" width="800">
 </p>
 
 ## The Problem
