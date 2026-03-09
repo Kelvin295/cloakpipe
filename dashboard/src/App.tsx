@@ -7,6 +7,8 @@ import { DetectionFeed } from './pages/DetectionFeed'
 import { Compliance } from './pages/Compliance'
 import { Policies } from './pages/Policies'
 import { Settings } from './pages/Settings'
+import { KnowledgeBase } from './pages/KnowledgeBase'
+import { ChatInstances } from './pages/ChatInstances'
 
 export default function App() {
   return (
@@ -14,6 +16,8 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Chat />} />
+          <Route path="/knowledge-base" element={<KnowledgeBase />} />
+          <Route path="/chat-instances" element={<ChatInstances />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/instances" element={<Instances />} />
           <Route path="/detections" element={<DetectionFeed />} />

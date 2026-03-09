@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Plus, Shield, Eye, MessageSquare, ChevronRight, AlertCircle } from 'lucide-react'
+import { Send, Plus, Shield, Eye, MessageSquare, ChevronRight, AlertCircle, Database } from 'lucide-react'
 import { usePowerSync, useQuery } from '@powersync/react'
 import { pseudonymize, rehydrate, createVault, type TokenVault, type DetectedEntity } from '../lib/cloakpipe'
+import { search, buildContextPrompt, type Chunk } from '../lib/retrieval'
 
 interface Message {
   id: string
@@ -42,6 +43,8 @@ export function Chat() {
   const [liveEntities, setLiveEntities] = useState<DetectedEntity[]>([])
   const [livePseudonymized, setLivePseudonymized] = useState('')
   const [vault] = useState<TokenVault>(() => createVault())
+  const [selectedKb, setSelectedKb] = useState<string | null>(null)
+  const [retrievedContext, setRetrievedContext] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -60,6 +63,11 @@ export function Chat() {
 
   const { data: llmKeys } = useQuery<{ provider: string; api_key: string }>(
     `SELECT provider, api_key FROM llm_keys ORDER BY created_at DESC LIMIT 1`
+  )
+
+  const { data: knowledgeBases } = useQuery<{ id: string; name: string; document_count: number; chunk_count: number }>(
+    `SELECT id, name, document_count, chunk_count FROM knowledge_bases WHERE org_id = ? ORDER BY name ASC`,
+    ['org-001']
   )
 
   const apiKey = llmKeys?.[0]?.api_key || ''
@@ -147,12 +155,33 @@ export function Chat() {
     // Save original message with pseudonymization metadata
     await saveMessage(convId, 'user', userMessage, pseudonymized, entities)
 
+    // RAG retrieval if knowledge base is selected
+    let queryContent = pseudonymized
+    if (selectedKb) {
+      const rows = await db.getAll<{
+        id: string; doc_id: string; content: string; pseudonymized_content: string;
+        chunk_index: number; page_number: number
+      }>(`SELECT id, doc_id, content, pseudonymized_content, chunk_index, page_number FROM kb_chunks WHERE kb_id = ?`, [selectedKb])
+
+      const chunks: Chunk[] = rows.map(r => ({
+        id: r.id, docId: r.doc_id, content: r.content,
+        pseudonymizedContent: r.pseudonymized_content,
+        chunkIndex: r.chunk_index, pageNumber: r.page_number,
+      }))
+
+      const results = search(pseudonymized, chunks, 5)
+      if (results.length > 0) {
+        queryContent = buildContextPrompt(results, pseudonymized)
+        setRetrievedContext(results.map(r => r.chunk.pseudonymizedContent || r.chunk.content).join('\n---\n').slice(0, 500))
+      }
+    }
+
     // Build history using pseudonymized versions for the LLM
     const history = (messages || []).map(m => ({
       role: m.role as 'user' | 'assistant',
       content: m.role === 'user' && m.pseudonymized_content ? m.pseudonymized_content : m.content,
     }))
-    history.push({ role: 'user', content: pseudonymized })
+    history.push({ role: 'user', content: queryContent })
 
     setStreaming(true)
     setStreamContent('')
@@ -308,7 +337,7 @@ export function Chat() {
           ))}
         </div>
 
-        <div className="p-3 border-t border-[var(--border)]">
+        <div className="p-3 border-t border-[var(--border)] space-y-2">
           <select
             value={model}
             onChange={(e) => setModel(e.target.value)}
@@ -318,6 +347,19 @@ export function Chat() {
               <option key={m.id} value={m.id}>{m.label}</option>
             ))}
           </select>
+
+          {(knowledgeBases || []).length > 0 && (
+            <select
+              value={selectedKb || ''}
+              onChange={(e) => { setSelectedKb(e.target.value || null); setRetrievedContext('') }}
+              className="w-full px-2 py-1 bg-[var(--background)] border border-[var(--border)] text-[11px] text-[var(--foreground)]"
+            >
+              <option value="">No Knowledge Base</option>
+              {(knowledgeBases || []).map(kb => (
+                <option key={kb.id} value={kb.id}>{kb.name} ({kb.chunk_count} chunks)</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -342,9 +384,16 @@ export function Chat() {
                 Your messages are pseudonymized before reaching the LLM.
                 The AI never sees your real data.
               </p>
-              <p className="text-[10px] text-[var(--muted-foreground)] mt-2 font-mono">
-                Built-in privacy engine — no proxy required
-              </p>
+              {selectedKb ? (
+                <div className="flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-[var(--primary)]/10 border border-[var(--primary)]/20 text-[11px] text-[var(--primary)]">
+                  <Database className="w-3 h-3" />
+                  RAG mode — querying knowledge base
+                </div>
+              ) : (
+                <p className="text-[10px] text-[var(--muted-foreground)] mt-2 font-mono">
+                  Built-in privacy engine — no proxy required
+                </p>
+              )}
             </div>
           )}
 
@@ -489,6 +538,27 @@ export function Chat() {
             {/* Stats from current conversation */}
             {conversationId && (
               <ConversationStats conversationId={conversationId} />
+            )}
+
+            {/* RAG context preview */}
+            {selectedKb && retrievedContext && (
+              <div className="border-t border-[var(--border)] pt-3">
+                <h3 className="text-[10px] uppercase tracking-wider text-[var(--muted-foreground)] mb-1.5 flex items-center gap-1">
+                  <Database className="w-3 h-3" /> Retrieved Context
+                </h3>
+                <div className="bg-[var(--background)] border border-[var(--border)] p-2 text-[11px] text-[var(--muted-foreground)] font-mono max-h-32 overflow-auto">
+                  {retrievedContext}
+                </div>
+              </div>
+            )}
+
+            {selectedKb && !retrievedContext && (
+              <div className="border-t border-[var(--border)] pt-3">
+                <div className="flex items-center gap-1.5 text-[11px] text-[var(--primary)]">
+                  <Database className="w-3 h-3" />
+                  <span>RAG mode active — queries will search the knowledge base</span>
+                </div>
+              </div>
             )}
 
             {/* How it works */}

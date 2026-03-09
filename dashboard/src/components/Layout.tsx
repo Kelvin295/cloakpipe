@@ -12,14 +12,18 @@ import {
   WifiOff,
   Sun,
   Moon,
+  Database,
+  Bot,
 } from 'lucide-react'
 import { useStatus } from '@powersync/react'
 import { useState, useEffect } from 'react'
 
 const navItems = [
   { to: '/', icon: MessageSquare, label: 'Chat' },
+  { to: '/knowledge-base', icon: Database, label: 'Knowledge Base' },
+  { to: '/chat-instances', icon: Bot, label: 'Instances' },
   { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-  { to: '/instances', icon: Server, label: 'Instances' },
+  { to: '/instances', icon: Server, label: 'Proxy' },
   { to: '/detections', icon: Eye, label: 'Detections' },
   { to: '/compliance', icon: FileCheck, label: 'Compliance' },
   { to: '/policies', icon: SlidersHorizontal, label: 'Policies' },

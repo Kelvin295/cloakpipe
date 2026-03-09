@@ -101,6 +101,55 @@ const chat_messages = new Table({
   created_at: column.text,
 });
 
+const knowledge_bases = new Table({
+  org_id: column.text,
+  name: column.text,
+  description: column.text,
+  document_count: column.integer,
+  chunk_count: column.integer,
+  total_detections: column.integer,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
+const kb_documents = new Table({
+  kb_id: column.text,
+  org_id: column.text,
+  name: column.text,
+  file_type: column.text,
+  content: column.text,
+  size_bytes: column.integer,
+  chunk_count: column.integer,
+  detection_count: column.integer,
+  created_at: column.text,
+});
+
+const kb_chunks = new Table({
+  doc_id: column.text,
+  kb_id: column.text,
+  content: column.text,
+  pseudonymized_content: column.text,
+  entities_json: column.text,
+  entity_count: column.integer,
+  chunk_index: column.integer,
+  page_number: column.integer,
+});
+
+const chat_instances = new Table({
+  org_id: column.text,
+  name: column.text,
+  description: column.text,
+  kb_ids: column.text,
+  model: column.text,
+  system_prompt: column.text,
+  temperature: column.real,
+  max_tokens: column.integer,
+  is_public: column.integer,
+  share_token: column.text,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
 export const AppSchema = new Schema({
   organizations,
   profiles,
@@ -113,6 +162,10 @@ export const AppSchema = new Schema({
   llm_keys,
   conversations,
   chat_messages,
+  knowledge_bases,
+  kb_documents,
+  kb_chunks,
+  chat_instances,
 });
 
 export type Database = (typeof AppSchema)['types'];
