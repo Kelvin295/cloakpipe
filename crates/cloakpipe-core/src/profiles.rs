@@ -1,6 +1,6 @@
 //! Industry detection profiles — pre-tuned configurations for common use cases.
 
-use crate::config::{CustomConfig, CustomPattern, DetectionConfig, NerConfig, OverrideConfig};
+use crate::config::{CustomConfig, CustomPattern, DetectionConfig, NerBackend, NerConfig, OverrideConfig};
 use serde::{Deserialize, Serialize};
 
 /// Available industry profiles.
@@ -61,6 +61,7 @@ impl IndustryProfile {
                 urls_internal: false,
                 ner: NerConfig {
                     enabled: true,
+                    backend: NerBackend::default(),
                     model: None,
                     confidence_threshold: 0.85,
                     entity_types: vec![
@@ -92,6 +93,7 @@ impl IndustryProfile {
                 urls_internal: false,
                 ner: NerConfig {
                     enabled: true,
+                    backend: NerBackend::default(),
                     model: None,
                     confidence_threshold: 0.80,
                     entity_types: vec![

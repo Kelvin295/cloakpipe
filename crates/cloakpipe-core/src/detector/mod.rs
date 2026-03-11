@@ -12,7 +12,11 @@ pub mod custom;
 
 #[cfg(feature = "ner")]
 pub mod ner;
+#[cfg(feature = "ner")]
+pub mod gliner;
 
+#[cfg(feature = "ner")]
+use crate::config::NerBackend;
 use crate::{DetectedEntity, config::DetectionConfig};
 use anyhow::Result;
 
@@ -23,6 +27,8 @@ pub struct Detector {
     custom_detector: custom::CustomDetector,
     #[cfg(feature = "ner")]
     ner_detector: Option<ner::NerDetector>,
+    #[cfg(feature = "ner")]
+    gliner_detector: Option<gliner::GlinerDetector>,
     /// Entities to never anonymize (e.g., public companies).
     preserve_list: Vec<String>,
     /// Entities to always anonymize regardless of detection.
@@ -37,8 +43,14 @@ impl Detector {
             financial_detector: financial::FinancialDetector::new(config)?,
             custom_detector: custom::CustomDetector::new(config)?,
             #[cfg(feature = "ner")]
-            ner_detector: if config.ner.enabled {
+            ner_detector: if config.ner.enabled && matches!(config.ner.backend, NerBackend::Bert) {
                 Some(ner::NerDetector::new(&config.ner)?)
+            } else {
+                None
+            },
+            #[cfg(feature = "ner")]
+            gliner_detector: if config.ner.enabled && matches!(config.ner.backend, NerBackend::Gliner) {
+                Some(gliner::GlinerDetector::new(&config.ner)?)
             } else {
                 None
             },
@@ -58,10 +70,14 @@ impl Detector {
         // Layer 2: Financial intelligence
         entities.extend(self.financial_detector.detect(text)?);
 
-        // Layer 3: NER (optional)
+        // Layer 3: NER (optional — BERT or GLiNER backend)
         #[cfg(feature = "ner")]
         if let Some(ref ner) = self.ner_detector {
             entities.extend(ner.detect(text)?);
+        }
+        #[cfg(feature = "ner")]
+        if let Some(ref gliner) = self.gliner_detector {
+            entities.extend(gliner.detect(text)?);
         }
 
         // Layer 4: Custom TOML rules

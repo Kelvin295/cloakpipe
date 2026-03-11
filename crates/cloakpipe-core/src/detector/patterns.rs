@@ -25,11 +25,22 @@ impl PatternDetector {
                 category: EntityCategory::Secret,
                 _name: "aws_access_key".into(),
             });
-            // Generic API keys / tokens
+            // OpenAI / generic API keys (sk-proj-*, sk-live-*, sk-<32+ alphanum>)
             rules.push(PatternRule {
-                regex: Regex::new(r"(?i)(sk-[a-zA-Z0-9]{32,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36})")?,
+                regex: Regex::new(r"sk-(?:proj|live|test|prod)-[a-zA-Z0-9]{10,}")?,
                 category: EntityCategory::Secret,
-                _name: "api_token".into(),
+                _name: "api_key_prefixed".into(),
+            });
+            rules.push(PatternRule {
+                regex: Regex::new(r"sk-[a-zA-Z0-9]{32,}")?,
+                category: EntityCategory::Secret,
+                _name: "api_key_generic".into(),
+            });
+            // GitHub tokens
+            rules.push(PatternRule {
+                regex: Regex::new(r"(?i)(ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|ghs_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{22,})")?,
+                category: EntityCategory::Secret,
+                _name: "github_token".into(),
             });
             // Connection strings
             rules.push(PatternRule {
@@ -53,27 +64,48 @@ impl PatternDetector {
             });
         }
 
-        if config.phone_numbers {
-            rules.push(PatternRule {
-                regex: Regex::new(r"\+?[1-9]\d{0,2}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}")?,
-                category: EntityCategory::PhoneNumber,
-                _name: "phone".into(),
-            });
-        }
-
+        // IP addresses MUST come before phone numbers so they win dedup
         if config.ip_addresses {
             rules.push(PatternRule {
-                regex: Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")?,
+                regex: Regex::new(r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b")?,
                 category: EntityCategory::IpAddress,
                 _name: "ipv4".into(),
             });
         }
 
+        // Identity documents MUST come before phone (Aadhaar overlaps phone pattern)
+        rules.push(PatternRule {
+            regex: Regex::new(r"\b\d{3}-\d{2}-\d{4}\b")?,
+            category: EntityCategory::Custom("SSN".into()),
+            _name: "ssn".into(),
+        });
+        rules.push(PatternRule {
+            regex: Regex::new(r"\b\d{4}\s\d{4}\s\d{4}\b")?,
+            category: EntityCategory::Custom("AADHAAR".into()),
+            _name: "aadhaar".into(),
+        });
+        rules.push(PatternRule {
+            regex: Regex::new(r"\b[A-Z]{5}\d{4}[A-Z]\b")?,
+            category: EntityCategory::Custom("PAN".into()),
+            _name: "pan".into(),
+        });
+
+        if config.phone_numbers {
+            // Tighter phone regex: requires country code or area code pattern,
+            // minimum 7 digits total, won't match bare 4-digit numbers or IPs
+            rules.push(PatternRule {
+                regex: Regex::new(r"(?:\+[1-9]\d{0,2}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{4,}")?,
+                category: EntityCategory::PhoneNumber,
+                _name: "phone".into(),
+            });
+        }
+
+        // URLs: both internal and general
         if config.urls_internal {
             rules.push(PatternRule {
-                regex: Regex::new(r"https?://(?:internal|staging|dev|admin)\.[a-zA-Z0-9.-]+(?:/[^\s]*)?")?,
+                regex: Regex::new(r"https?://[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?(?::\d{1,5})?(?:/[^\s)]*)?")?,
                 category: EntityCategory::Url,
-                _name: "internal_url".into(),
+                _name: "url".into(),
             });
         }
 

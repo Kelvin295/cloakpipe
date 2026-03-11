@@ -76,10 +76,20 @@ pub struct DetectionConfig {
     pub resolver: ResolverConfig,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum NerBackend {
+    #[default]
+    Bert,
+    Gliner,
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct NerConfig {
     #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
+    pub backend: NerBackend,
     pub model: Option<String>,
     #[serde(default = "default_confidence")]
     pub confidence_threshold: f64,
