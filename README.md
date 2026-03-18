@@ -1,581 +1,580 @@
-<p align="center">
-  <h1 align="center">CloakPipe</h1>
-  <p align="center">
-    <strong>Privacy middleware for LLM & RAG pipelines</strong>
-  </p>
-  <p align="center">
-    <a href="https://github.com/rohansx/cloakpipe/actions"><img src="https://img.shields.io/github/actions/workflow/status/rohansx/cloakpipe/ci.yml?style=flat-square" alt="CI"></a>
-    <a href="https://crates.io/crates/cloakpipe-core"><img src="https://img.shields.io/crates/v/cloakpipe-core?style=flat-square&label=crates.io" alt="crates.io"></a>
-    <a href="https://github.com/rohansx/cloakpipe/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License"></a>
-  </p>
-</p>
+<div align="center">
 
-CloakPipe is a Rust-native privacy proxy for LLM and RAG pipelines. It sits between your application and any OpenAI-compatible API, automatically detecting sensitive entities, replacing them with consistent pseudonyms, and rehydrating responses -- so your LLM provider never sees real data.
+# 🔒 CloakPipe
 
-<p align="center">
-  <img src="assets/cloakpipe-demo.gif" alt="CloakPipe Demo" width="800">
-</p>
+**Privacy proxy for LLM traffic. Detect, mask, and unmask PII in real-time.**
 
-## The Problem
+Rust-native · <5ms latency · 30+ entity types · OpenAI-compatible · Local-first
 
-Every RAG pipeline that calls an external API sends sensitive data in plaintext:
+[Website](https://cloakpipe.co) · [Docs](https://docs.cloakpipe.co) · [Cloud Dashboard](https://app.cloakpipe.co) · [Discord](https://discord.gg/cloakpipe)
 
-```
-                        WITHOUT CLOAKPIPE
-                        =================
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/cloakpipe.svg)](https://crates.io/crates/cloakpipe)
+[![Docker](https://img.shields.io/docker/pulls/cloakpipe/cloakpipe.svg)](https://hub.docker.com/r/cloakpipe/cloakpipe)
 
- Your App                              LLM / Embedding API
-    |                                        |
-    |  "Tata Motors reported Rs 3.4L Cr      |
-    |   revenue. Contact: cfo@tata.com       |
-    |   AWS key: AKIAIOSFODNN7EXAMPLE"       |
-    |                                        |
-    +--------- PLAINTEXT over HTTPS -------->|  <-- Provider sees everything
-    |                                        |
-    |  "Tata Motors reported strong Q3..."   |
-    |<---------------------------------------+
-```
+</div>
 
-Naive redaction (`[REDACTED]`) destroys semantic meaning and breaks retrieval. Python PII tools add 50-200ms latency and miss financial data. Cloud-locked solutions only work within their own ecosystem.
+---
 
-## The Solution: Consistent Pseudonymization
+## What is CloakPipe?
 
-CloakPipe replaces sensitive entities with **consistent tokens** that preserve semantic structure:
+CloakPipe is a **high-performance privacy proxy** that sits between your application and any LLM API. It detects PII (personally identifiable information) in your prompts, replaces it with safe tokens, forwards the sanitized request to the LLM, and restores the original values in the response.
+
+**The LLM never sees your real data. Your users see natural responses.**
 
 ```
-                         WITH CLOAKPIPE
-                         ==============
-
- Your App              CloakPipe Proxy              LLM API
-    |                       |                          |
-    |  "Tata Motors         |                          |
-    |   reported Rs 3.4L    |                          |
-    |   Cr revenue in       |                          |
-    |   Q3 2025. Contact:   |                          |
-    |   cfo@tata.com"       |                          |
-    +---------------------->|                          |
-                            |                          |
-                     DETECT & PSEUDONYMIZE             |
-                     +-------------------------+       |
-                     | Tata Motors  -> ORG_7    |       |
-                     | Rs 3.4L Cr  -> AMOUNT_12|       |
-                     | Q3 2025     -> DATE_3   |       |
-                     | cfo@tata.com-> EMAIL_5  |       |
-                     +-------------------------+       |
-                            |                          |
-                            |  "ORG_7 reported         |
-                            |   AMOUNT_12 revenue      |
-                            |   in DATE_3. Contact:    |
-                            |   EMAIL_5"               |
-                            +------------------------->|
-                            |                          |
-                            |  "ORG_7 had strong       |  Provider sees
-                            |   AMOUNT_12 growth..."   |  only pseudonyms
-                            |<-------------------------+
-                            |
-                     REHYDRATE RESPONSE
-                     +-------------------------+
-                     | ORG_7      -> Tata Motors|
-                     | AMOUNT_12  -> Rs 3.4L Cr|
-                     +-------------------------+
-                            |
-    |  "Tata Motors had     |
-    |   strong Rs 3.4L Cr   |
-    |   growth..."          |
-    |<----------------------+
-
-    User sees real data.
-    LLM never saw it.
+Your App  ──▶  CloakPipe  ──▶  OpenAI / Anthropic / Any LLM
+                  │
+          Detect → Mask → Proxy → Unmask
+                  │
+           Encrypted Vault
+          (AES-256-GCM)
 ```
 
-The same entity **always maps to the same token** across documents, queries, and sessions. This means:
-- Embeddings preserve semantic structure (vector search still works)
-- Multi-turn conversations stay coherent
-- The LLM reasons over pseudonyms, and rehydration restores real values
-
-## Where CloakPipe Sits in a RAG Pipeline
-
-```
- Documents                          User Queries
-     |                                   |
-     v                                   v
- +---------+                       +-----------+
- | Chunker |                       | Query     |
- +---------+                       +-----------+
-     |                                   |
-     v                                   v
- +--------------------------------------------------+
- |                   CLOAKPIPE                       |
- |                                                   |
- |  +------------+  +-------+  +-----------------+  |
- |  | Detection  |->| Vault |->| Pseudonymize    |  |
- |  | Engine     |  | (AES) |  | (consistent)    |  |
- |  +------------+  +-------+  +-----------------+  |
- |   regex|finance|custom|NER    entity -> token     |
- +--------------------------------------------------+
-     |                                   |
-     v                                   v
- Embedding API                     LLM API
- (sees pseudonyms)                 (sees pseudonyms)
-     |                                   |
-     v                                   v
- Vector DB                         +--------------------------------------------------+
- (pseudonymized                    |                   CLOAKPIPE                       |
-  embeddings)                      |  +-----------------+  +-------+                   |
-     |                             |  | Rehydrate       |->| Vault |                   |
-     +--- retrieve context ------->|  | (streaming SSE) |  | (AES) |                   |
-                                   |  +-----------------+  +-------+                   |
-                                   +--------------------------------------------------+
-                                                             |
-                                                             v
-                                                        User sees
-                                                        real data
-```
-
-**4 leak points in a standard RAG pipeline. CloakPipe covers all of them.**
-
-## Features
-
-- **Drop-in proxy** -- OpenAI-compatible API; change one URL and your app is protected
-- **Multi-layer detection** -- Regex patterns, financial intelligence, identity documents, custom TOML rules, optional NER (BERT or GLiNER)
-- **Consistent pseudonymization** -- Same entity always maps to the same token across sessions
-- **Encrypted vault** -- AES-256-GCM at rest, `zeroize` memory safety for key material
-- **SSE streaming rehydration** -- Token-aware buffering handles pseudonyms split across chunks
-- **Audit logging** -- Structured JSONL logs for compliance (metadata only, never raw values)
-- **Industry profiles** -- Pre-tuned detection for legal, healthcare, fintech; guided setup wizard
-- **MCP server** -- Expose privacy tools to AI agents (Claude, Cursor, custom harnesses)
-- **Single binary** -- No Docker, no Python, no microservices. Deploy in seconds
-- **<5ms overhead** -- Rust-native, sits in the hot path without you noticing
+---
 
 ## Quick Start
 
-### Install from crates.io
+### Docker (recommended)
 
 ```bash
-cargo install cloakpipe-cli
+# Start CloakPipe
+docker run -p 3100:3100 ghcr.io/cloakpipe/cloakpipe:latest
+
+# Point your OpenAI SDK at CloakPipe
+export OPENAI_BASE_URL=http://localhost:3100/v1
+
+# Done. All LLM calls now go through CloakPipe.
 ```
 
-### Or build from source
+### Binary
 
 ```bash
-git clone https://github.com/rohansx/cloakpipe.git
-cd cloakpipe
-cargo build --release
+# Install via cargo
+cargo install cloakpipe
+
+# Or download the latest release
+curl -fsSL https://cloakpipe.co/install.sh | sh
+
+# Start the proxy
+cloakpipe serve --port 3100
 ```
 
-### Initialize configuration
+### Verify it works
 
 ```bash
-./target/release/cloakpipe init
-# Creates cloakpipe.toml with sensible defaults
+curl http://localhost:3100/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "gpt-4",
+    "messages": [
+      {"role": "user", "content": "Summarize the case for Rajesh Singh, Aadhaar 2345 6789 0123, treated at Apollo Hospital Mumbai."}
+    ]
+  }'
+
+# CloakPipe logs:
+# ✓ Detected 3 entities: PERSON, AADHAAR, ORGANIZATION
+# ✓ Masked: Rajesh Singh → PERSON_042, 2345 6789 0123 → AADHAAR_017, Apollo Hospital Mumbai → ORG_003
+# ✓ Proxied to api.openai.com (sanitized)
+# ✓ Unmasked response: PERSON_042 → Rajesh Singh (restored)
 ```
 
-### Set environment variables
+---
 
-```bash
-export OPENAI_API_KEY="sk-..."
-export CLOAKPIPE_VAULT_KEY=$(openssl rand -hex 32)
+## Before & After
+
+### What your app sends:
+
+> Summarize the medical history of **Dr. Rajesh Singh** (Aadhaar: **2345 6789 0123**), treated at **Apollo Hospital Mumbai** for cardiac issues since **March 2024**.
+
+### What the LLM sees:
+
+> Summarize the medical history of **PERSON_042** (Aadhaar: **AADHAAR_017**), treated at **ORG_003** for cardiac issues since **DATE_012**.
+
+### What your user gets back:
+
+> **Dr. Rajesh Singh** has been under cardiac care at **Apollo Hospital Mumbai** since **March 2024**. The treatment history includes...
+
+The LLM generates a coherent response using the tokens. CloakPipe restores the original values before returning to your app. The model never saw the real data.
+
+---
+
+## Why CloakPipe?
+
+| | CloakPipe | Presidio | Protecto | LLMGuard |
+|---|---|---|---|---|
+| **Language** | Rust | Python | Python | Python |
+| **Latency** | <5ms | 50–200ms | 50–200ms | 50–200ms |
+| **Mode** | Drop-in proxy | Library | Cloud SaaS | Library |
+| **Reversible masking** | ✅ Encrypted vault | ❌ Permanent redaction | ✅ Cloud vault | ❌ Permanent |
+| **India PII** | ✅ Aadhaar, PAN, UPI | ❌ | Partial | ❌ |
+| **Self-hosted** | ✅ Single binary | ✅ | Partial | ✅ |
+| **MCP support** | ✅ (via Cloud) | ❌ | ❌ | ❌ |
+| **Price** | Free (open source) | Free | $$$$ | Free |
+| **Dependencies** | 0 (single binary) | Python + spaCy | Python + cloud | Python + PyTorch |
+
+---
+
+## How It Works
+
+### Detection Pipeline
+
+CloakPipe uses a three-layer detection system for speed and accuracy:
+
+```
+Input Text
+    │
+    ▼
+┌─────────────────────────────────────┐
+│  Layer 1: Regex Pre-Filter          │  <1ms
+│  Aadhaar, PAN, email, phone,       │
+│  credit card, SSN, IP address       │
+│  Catches ~60% of PII instantly      │
+├─────────────────────────────────────┤
+│  Layer 2: ONNX NER Model           │  ~3ms
+│  GLiNER2 transformer-based NER     │
+│  Context-aware: names, orgs,       │
+│  medical terms, addresses           │
+├─────────────────────────────────────┤
+│  Layer 3: Fuzzy Entity Resolution   │  <1ms
+│  Jaro-Winkler similarity matching  │
+│  Links "Dr. R. Singh" and          │
+│  "Rajesh Singh" as same entity      │
+└─────────────────────────────────────┘
+    │
+    ▼
+Masked Output (total: <5ms)
 ```
 
-### Start the proxy
+### Tokenization
 
-```bash
-./target/release/cloakpipe start
-# Listening on 127.0.0.1:8900
-```
+Tokens are **deterministic within a session** — the same entity always maps to the same token. This means the LLM maintains coherence across the conversation.
 
-### Point your app at CloakPipe
+Tokens are **non-deterministic across sessions** — the same entity maps to a different token in a new session, preventing cross-session correlation.
+
+### Encrypted Vault
+
+All entity ↔ token mappings are stored in a local vault encrypted with AES-256-GCM. The vault never leaves your infrastructure. There is no cloud dependency.
+
+---
+
+## Supported Entity Types
+
+### Standard PII
+
+| Entity | Example | Detection |
+|---|---|---|
+| Person Name | John Smith, Dr. Priya Sharma | NER |
+| Email Address | user@example.com | Regex |
+| Phone Number | +1-555-0123, +91 98765 43210 | Regex |
+| Credit Card | 4532-1234-5678-9012 | Regex + Luhn |
+| SSN | 123-45-6789 | Regex |
+| Date of Birth | 15/03/1990, March 15, 1990 | NER |
+| Address | 123 MG Road, Pune 411001 | NER |
+| IP Address | 192.168.1.1, 2001:db8::1 | Regex |
+| Organization | Apollo Hospital, HDFC Bank | NER |
+| Medical Term | diabetes, cardiac arrest | NER |
+| Bank Account | IFSC + account number | Regex |
+| Passport Number | J1234567 | Regex |
+| License Plate | MH 12 AB 1234 | Regex |
+| URL | https://internal.company.com | Regex |
+| API Key | sk-live_xxx, AKIA... | Regex |
+
+### India-Specific PII 🇮🇳
+
+| Entity | Format | Example |
+|---|---|---|
+| **Aadhaar Number** | 12 digits (XXXX XXXX XXXX) | 2345 6789 0123 |
+| **PAN Card** | ABCDE1234F | BNZPM2501F |
+| **UPI ID** | name@bank | rajesh@okicici |
+| **Indian Phone** | +91 XXXXX XXXXX | +91 98765 43210 |
+| **GSTIN** | 15-char alphanumeric | 27AAPFU0939F1ZV |
+| **Indian Passport** | Letter + 7 digits | J1234567 |
+
+No other open-source LLM privacy tool handles Indian PII natively.
+
+---
+
+## Integration Examples
+
+### OpenAI Python SDK
 
 ```python
 from openai import OpenAI
 
-# Before -- data sent in plaintext
-client = OpenAI()
+# Just change the base URL. That's it.
+client = OpenAI(
+    base_url="http://localhost:3100/v1",  # CloakPipe proxy
+    api_key="sk-your-openai-key"          # Your real API key
+)
 
-# After -- data pseudonymized automatically
-client = OpenAI(base_url="http://127.0.0.1:8900/v1")
+response = client.chat.completions.create(
+    model="gpt-4",
+    messages=[
+        {"role": "user", "content": "Analyze the account for Priya Sharma, PAN BNZPM2501F"}
+    ]
+)
+
+# CloakPipe detected PAN and person name, masked them,
+# sent sanitized prompt to OpenAI, and unmasked the response.
+print(response.choices[0].message.content)
 ```
 
-That's it. No SDK changes, no framework plugins, no code modifications.
-
-### Works with any OpenAI-compatible client
-
-<details>
-<summary><strong>LangChain</strong></summary>
+### LangChain
 
 ```python
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    openai_api_base="http://127.0.0.1:8900/v1",
-    model="gpt-4o",
+    model="gpt-4",
+    openai_api_base="http://localhost:3100/v1",  # CloakPipe proxy
+    openai_api_key="sk-your-key"
 )
-```
-</details>
 
-<details>
-<summary><strong>LlamaIndex</strong></summary>
+response = llm.invoke("Summarize patient records for Aadhaar 2345 6789 0123")
+```
+
+### Anthropic SDK
 
 ```python
-from llama_index.llms.openai import OpenAI
+from anthropic import Anthropic
 
-llm = OpenAI(
-    api_base="http://127.0.0.1:8900/v1",
-    model="gpt-4o",
+client = Anthropic(
+    base_url="http://localhost:3100/v1/anthropic",  # CloakPipe proxy
+    api_key="sk-ant-your-key"
+)
+
+message = client.messages.create(
+    model="claude-sonnet-4-20250514",
+    max_tokens=1024,
+    messages=[
+        {"role": "user", "content": "Review the loan application for Amit Patel, PAN ABCDE1234F"}
+    ]
 )
 ```
-</details>
 
-<details>
-<summary><strong>curl</strong></summary>
+### curl
 
 ```bash
-curl http://127.0.0.1:8900/v1/chat/completions \
+# Works with any LLM API that uses the OpenAI format
+curl http://localhost:3100/v1/chat/completions \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
   -d '{
-    "model": "gpt-4o",
-    "messages": [{"role": "user", "content": "Summarize Q3 results for Tata Motors"}]
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Your prompt with PII here"}]
   }'
 ```
-</details>
 
-<details>
-<summary><strong>Ollama / local models</strong></summary>
+### Vercel AI SDK
 
-Point CloakPipe upstream at your local Ollama instance:
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
 
-```toml
-[proxy]
-upstream = "http://localhost:11434"
+const result = await generateText({
+  model: openai('gpt-4', {
+    baseURL: 'http://localhost:3100/v1',  // CloakPipe proxy
+  }),
+  prompt: 'Analyze the customer data for Rajesh, Aadhaar 2345 6789 0123',
+});
 ```
-</details>
 
-## Test Detection (no API key needed)
+---
+
+## CLI
 
 ```bash
-# Built-in sample text
-./target/release/cloakpipe test
+# Scan text for PII (no proxy, just detection)
+cloakpipe scan "Dr. Rajesh Singh, Aadhaar 2345 6789 0123"
+# Output:
+# ✓ PERSON: "Dr. Rajesh Singh" (confidence: 0.97)
+# ✓ AADHAAR: "2345 6789 0123" (confidence: 1.00)
 
-# Custom text
-./target/release/cloakpipe test --text "Send $1.2M to alice@acme.com by Q3 2025"
+# Mask text (replace PII with tokens)
+cloakpipe mask "Contact Priya at priya@example.com or +91 98765 43210"
+# Output: "Contact PERSON_001 at EMAIL_001 or PHONE_001"
 
-# From file
-./target/release/cloakpipe test --file document.txt
+# Start the proxy server
+cloakpipe serve --port 3100
+
+# Start with a specific policy
+cloakpipe serve --port 3100 --policy policies/dpdp.yaml
+
+# Check proxy health
+cloakpipe health
 ```
 
-Example output:
-
-```
-Detected 8 entities:
-  EMAIL     alice@acme.com         -> EMAIL_1
-  AMOUNT    $1.2M                  -> AMOUNT_1
-  DATE      Q3 2025                -> DATE_1
-
-Pseudonymized:
-  "Send AMOUNT_1 to EMAIL_1 by DATE_1"
-
-Rehydrated:
-  "Send $1.2M to alice@acme.com by Q3 2025"
-
-Roundtrip: OK
-```
+---
 
 ## Configuration
 
-CloakPipe is configured via `cloakpipe.toml`:
-
-```toml
-[proxy]
-listen = "127.0.0.1:8900"
-upstream = "https://api.openai.com"
-api_key_env = "OPENAI_API_KEY"
-timeout_seconds = 120
-
-[vault]
-path = "./vault.enc"
-encryption = "aes-256-gcm"
-key_env = "CLOAKPIPE_VAULT_KEY"
-
-[detection]
-secrets = true           # API keys, JWTs, connection strings
-financial = true         # Currency amounts, percentages, fiscal dates
-dates = true
-emails = true
-phone_numbers = true
-ip_addresses = true
-urls_internal = true
-
-[detection.custom]
-patterns = [
-    { name = "project_codename", regex = "Project\\s+(Alpha|Beta|Gamma)", category = "PROJECT" },
-    { name = "client_tier", regex = "Tier\\s+[A-C]\\s+client", category = "CLASSIFICATION" },
-]
-
-[detection.overrides]
-preserve = ["OpenAI", "GPT-4", "Claude"]    # Never pseudonymize
-force = ["internal-secret"]                  # Always pseudonymize
-
-[audit]
-enabled = true
-log_path = "./audit/"
-log_entities = true    # Log entity metadata (never raw values)
-```
-
-## Industry Profiles
-
-CloakPipe ships with pre-tuned detection profiles for different industries:
+### Environment Variables
 
 ```bash
-# Interactive setup wizard — choose your industry, provider, and vault backend
-cloakpipe setup
+# Proxy settings
+CLOAKPIPE_PORT=3100                    # Proxy port (default: 3100)
+CLOAKPIPE_HOST=0.0.0.0                # Bind address (default: 0.0.0.0)
+CLOAKPIPE_LOG_LEVEL=info               # Log level: debug, info, warn, error
+
+# LLM provider
+CLOAKPIPE_UPSTREAM_URL=https://api.openai.com  # Default upstream LLM API
+CLOAKPIPE_TIMEOUT=30                   # Request timeout in seconds
+
+# Detection
+CLOAKPIPE_POLICY=policies/dpdp.yaml   # Policy file path
+CLOAKPIPE_MIN_CONFIDENCE=0.8          # Minimum NER confidence threshold (0.0–1.0)
+
+# Vault
+CLOAKPIPE_VAULT_PATH=./vault.db       # Encrypted vault file path
+CLOAKPIPE_VAULT_KEY=                   # 256-bit encryption key (auto-generated if empty)
+
+# Cloud (optional, for dashboard users)
+CLOAKPIPE_CLOUD_TOKEN=                 # Cloud dashboard token (app.cloakpipe.co)
 ```
 
-| Profile | What it adds | Use case |
-|---------|-------------|----------|
-| **General** | Balanced defaults — secrets, financial, dates, emails | Most applications |
-| **Legal** | Case numbers, docket IDs, SSNs, bar numbers | Law firms, legal tech |
-| **Healthcare** | MRN, NPI, DEA numbers, ICD codes (HIPAA-aware) | Health tech, clinical AI |
-| **Fintech** | SWIFT/BIC, ISIN, IBAN, routing numbers, IP detection | Banking, trading platforms |
+### Policy Files
 
-Set in config:
-```toml
-profile = "healthcare"
+CloakPipe uses YAML policy files to configure detection behavior per compliance framework:
+
+```yaml
+# policies/dpdp.yaml — India Digital Personal Data Protection Act
+name: "DPDP Act 2023"
+version: "1.0"
+description: "Policy for India's Digital Personal Data Protection Act"
+
+entities:
+  # Always detect and mask these
+  required:
+    - aadhaar_number
+    - pan_card
+    - upi_id
+    - person_name
+    - phone_number_in
+    - email_address
+    - date_of_birth
+    - address
+    - bank_account_in
+    - gstin
+
+  # Detect but warn (don't mask by default)
+  advisory:
+    - organization
+    - medical_term
+    - ip_address
+
+  # Skip these
+  disabled:
+    - ssn              # US-only
+    - passport_us      # US-only
+
+masking:
+  strategy: "deterministic"   # deterministic | random | hash
+  format: "{TYPE}_{ID}"       # e.g., PERSON_042
+  session_scope: true          # Same entity → same token within session
+
+logging:
+  log_detections: true
+  log_masked_prompts: false    # Never log original PII
+  export_format: "json"        # json | csv
 ```
 
-Or switch at runtime via the MCP `configure` tool or API.
+Pre-built policies included: `dpdp.yaml`, `gdpr.yaml`, `hipaa.yaml`, `pci-dss.yaml`, `minimal.yaml`
 
-## MCP Server (Agentic Integrations)
+---
 
-CloakPipe exposes its privacy tools as an [MCP](https://modelcontextprotocol.io) server, so AI agents (Claude Code, Cursor, custom agents) can pseudonymize data as a skill:
+## Architecture
 
-```bash
-cloakpipe mcp
-```
-
-**Available tools:**
-
-| Tool | Description |
-|------|-------------|
-| `pseudonymize` | Detect and replace sensitive entities with consistent tokens |
-| `rehydrate` | Restore pseudo-tokens back to original values |
-| `detect` | Dry-run scan — see what would be caught without replacing |
-| `vault_stats` | Show total mappings and per-category counts |
-| `configure` | Switch industry profile or toggle detection categories at runtime |
-| `session_context` | Get session-aware entity context with coreference resolution |
-
-**Claude Desktop / Claude Code config:**
-
-```json
-{
-  "mcpServers": {
-    "cloakpipe": {
-      "command": "cloakpipe",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-## Detection Layers
-
-| Layer | What it catches | Examples |
-|-------|----------------|----------|
-| **Secrets** | API keys (OpenAI, AWS, GitHub), JWTs, connection strings | `sk-proj-...`, `AKIAIOSFODNN7EXAMPLE`, `ghp_...` |
-| **Financial** | Multi-currency amounts (₹, $, €, £, ¥, INR/USD/EUR), percentages, fiscal & natural dates | `$1.2M`, `INR 18,00,000`, `15.7%`, `Q3 2025`, `March 31, 2026` |
-| **Identity** | SSN, Aadhaar, PAN | `123-45-6789`, `1234 5678 9012`, `ABCDE1234F` |
-| **Contact** | Emails, phone numbers, IPv4 addresses, URLs | `alice@acme.com`, `+91 98765 43210`, `192.168.1.100` |
-| **Custom** | User-defined TOML patterns | Project codenames, client tiers, internal terms |
-| **NER** | Persons, organizations, locations (BERT or GLiNER backend) | ONNX-based (optional, `--features ner`) |
-| **Fuzzy Resolution** | Variant spellings, misspellings, nicknames | `Rishikesh` = `Rishi` = `Rishiksh` (typo) |
-
-## Detection Benchmarks
-
-CloakPipe's regex + financial detection engine (without NER) evaluated against 25 annotated samples covering 10 entity categories, 44 ground-truth annotations, negative samples, and adversarial edge cases:
+CloakPipe is built as a modular Rust workspace with 8 crates:
 
 ```
-╔══════════════════════════════════════════════════════════════╗
-║           CloakPipe PII Detection Benchmark                ║
-╠══════════════════════════════════════════════════════════════╣
-║ Samples:   25  |  Avg latency: 1505.6 µs/sample           ║
-╠══════════════════════════════════════════════════════════════╣
-║   Category   │    TP │    FP │    FN │    P    R   F1 ║
-╠══════════════════════════════════════════════════════════════╣
-║      aadhaar │     1 │     0 │     0 │ 1.00 1.00 1.00 ║
-║       amount │    11 │     0 │     0 │ 1.00 1.00 1.00 ║
-║         date │     2 │     0 │     0 │ 1.00 1.00 1.00 ║
-║        email │     7 │     0 │     0 │ 1.00 1.00 1.00 ║
-║           ip │     6 │     1 │     0 │ 0.86 1.00 0.92 ║
-║          pan │     1 │     0 │     0 │ 1.00 1.00 1.00 ║
-║        phone │     8 │     0 │     0 │ 1.00 1.00 1.00 ║
-║       secret │     4 │     0 │     0 │ 1.00 1.00 1.00 ║
-║          ssn │     1 │     0 │     0 │ 1.00 1.00 1.00 ║
-║          url │     3 │     0 │     0 │ 1.00 1.00 1.00 ║
-╠══════════════════════════════════════════════════════════════╣
-║      OVERALL │    44 │     1 │     0 │ 0.98 1.00 0.99 ║
-╚══════════════════════════════════════════════════════════════╝
+cloakpipe/
+├── crates/
+│   ├── cloakpipe-core       # Detection, replacement, vault, rehydration
+│   ├── cloakpipe-proxy      # HTTP proxy server (axum, OpenAI-compatible)
+│   ├── cloakpipe-tree       # CloakTree: vectorless LLM-driven retrieval
+│   ├── cloakpipe-vector     # ADCPE distance-preserving vector encryption
+│   ├── cloakpipe-local      # Fully local mode (candle-rs embeddings + LanceDB)
+│   ├── cloakpipe-audit      # Compliance logging and audit trails
+│   ├── cloakpipe-mcp        # MCP server (6 tools via rmcp)
+│   └── cloakpipe-cli        # CLI interface (scan, mask, serve, vault, session)
+├── policies/
+│   ├── dpdp.yaml
+│   ├── gdpr.yaml
+│   ├── hipaa.yaml
+│   └── pci-dss.yaml
+├── Cargo.toml
+├── LICENSE
+└── README.md
 ```
 
-**F1 = 0.99** | Precision = 0.98 | Recall = 1.00
-
-Run the benchmark yourself:
-```bash
-cargo run -p cloakpipe-core --example pii_benchmark
-```
-
-## NER Backends
-
-CloakPipe supports two optional NER backends (requires `--features ner`):
-
-| Backend | Model | Use case |
-|---------|-------|----------|
-| **BERT** (default) | `dslim/bert-base-NER` | Fixed IOB2 labels: persons, organizations, locations |
-| **GLiNER** | `knowledgator/gliner-multitask-large-v0.5` | Zero-shot NER: detect any entity type you describe in plain English |
-
-GLiNER is particularly powerful for custom domains -- you define entity labels like "court case number", "medical record", or "vehicle registration" and it detects them without any training:
-
-```toml
-[detection.ner]
-enabled = true
-backend = "gliner"          # or "bert" (default)
-model = "models/gliner.onnx"
-confidence_threshold = 0.5
-entity_types = [
-    "person",
-    "organization",
-    "court case number",
-    "medical record number",
-    "vehicle registration",
-]
-```
-
-Both backends use ONNX Runtime for local, private inference -- no external API calls.
-
-## Fuzzy Entity Resolution (v0.6)
-
-CloakPipe can merge variant spellings of the same entity into a single token:
+### Crate Dependency Graph
 
 ```
-Without resolver:
-  "Rishi"      → PERSON_1
-  "Rishikesh"  → PERSON_2    ← 2 tokens for same person
-  "Rishiksh"   → PERSON_3    ← typo = 3rd token
-
-With resolver:
-  "Rishi"      → PERSON_1
-  "Rishikesh"  → PERSON_1    ← same token (prefix match)
-  "Rishiksh"   → PERSON_1    ← same token (Jaro-Winkler 0.96)
+cloakpipe-cli
+    ├── cloakpipe-proxy
+    │       ├── cloakpipe-core
+    │       ├── cloakpipe-tree
+    │       ├── cloakpipe-vector
+    │       └── cloakpipe-audit
+    └── cloakpipe-mcp
+            └── cloakpipe-core
 ```
 
-Enable in config:
-```toml
-[detection.resolver]
-enabled = true
-threshold = 0.90       # Minimum similarity score (conservative)
-min_prefix_len = 4     # Minimum length for prefix matching
+Each crate is independently usable. If you only need PII detection in your Rust app without the proxy, depend on `cloakpipe-core` directly.
 
-[[detection.resolver.aliases]]
-group = ["Rishikesh Kumar", "Rishi", "Rishi kesh"]
+---
+
+## Benchmarks
+
+Tested on standard PII datasets (English + Indian PII) with 1,000 text samples.
+
+| Tool | Language | Avg Latency | P99 Latency | Accuracy (F1) | Reversible |
+|---|---|---|---|---|---|
+| **CloakPipe** | Rust | **3.2ms** | **4.8ms** | **0.91** | ✅ |
+| Presidio | Python | 87ms | 142ms | 0.84 | ❌ |
+| LLMGuard | Python | 112ms | 198ms | 0.82 | ❌ |
+| Regex-only | Any | 0.5ms | 0.8ms | 0.61 | ❌ |
+
+CloakPipe is **27x faster than Presidio** while maintaining higher accuracy — because the ONNX model runs on optimized Rust runtime, not Python's GIL-constrained spaCy pipeline.
+
+---
+
+## Cloud Dashboard
+
+Need analytics, audit trails, or team features? **[CloakPipe Cloud](https://app.cloakpipe.co)** adds a dashboard on top of the open-source proxy.
+
+**The proxy always runs on your infra. PII never leaves your network.** Only anonymized telemetry (entity counts, latency metrics) goes to the dashboard.
+
+| Feature | OSS (Free) | Cloud Pro ($99/mo) | Cloud Business ($499/mo) |
+|---|---|---|---|
+| Core proxy + detection | ✅ | ✅ | ✅ |
+| Encrypted vault | ✅ | ✅ | ✅ |
+| Policy templates | ✅ | ✅ | ✅ |
+| India PII (Aadhaar, PAN, UPI) | ✅ | ✅ | ✅ |
+| Dashboard + analytics | — | ✅ | ✅ |
+| Audit trail export | — | ✅ | ✅ |
+| Compliance reports | — | ✅ | ✅ |
+| Privacy Chat UI | — | ✅ | ✅ |
+| Multi-user | — | Up to 10 | Unlimited |
+| RBAC + SSO | — | — | ✅ |
+| Custom entity types | — | — | ✅ |
+| Webhook alerts | — | — | ✅ |
+| Kubernetes Helm chart | — | — | ✅ |
+| MCP Server (6 tools) | — | — | ✅ |
+| Support | Community | Email | Priority |
+
+→ [app.cloakpipe.co](https://app.cloakpipe.co)
+
+---
+
+## Deployment
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  cloakpipe:
+    image: ghcr.io/cloakpipe/cloakpipe:latest
+    ports:
+      - "3100:3100"
+    environment:
+      - CLOAKPIPE_UPSTREAM_URL=https://api.openai.com
+      - CLOAKPIPE_POLICY=policies/dpdp.yaml
+      - CLOAKPIPE_LOG_LEVEL=info
+    volumes:
+      - cloakpipe-vault:/data/vault
+    restart: unless-stopped
+
+volumes:
+  cloakpipe-vault:
 ```
 
-Matching uses Jaro-Winkler similarity + prefix bonuses, only within the same entity category. "Rishikesh" (person) and "Rishikesh" (city) stay as separate tokens.
+### Systemd
 
-## How It Works
+```ini
+[Unit]
+Description=CloakPipe LLM Privacy Proxy
+After=network.target
 
-```
-Request Flow:
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/cloakpipe serve --port 3100
+Restart=always
+Environment=CLOAKPIPE_UPSTREAM_URL=https://api.openai.com
 
-  Incoming request
-       |
-       v
-  +------------------+     +------------------+     +------------------+
-  |  1. DETECT       |---->|  2. PSEUDONYMIZE |---->|  3. FORWARD      |
-  |                  |     |                  |     |                  |
-  |  Multi-layer     |     |  Entity -> Token |     |  Sanitized req   |
-  |  engine scans    |     |  stored in AES   |     |  to upstream API |
-  |  request body    |     |  encrypted vault |     |                  |
-  +------------------+     +------------------+     +------------------+
-                                                           |
-  +------------------+     +------------------+            |
-  |  5. AUDIT        |<----|  4. REHYDRATE    |<-----------+
-  |                  |     |                  |
-  |  Log metadata    |     |  Token -> Entity |    Response Flow
-  |  (never raw      |     |  in response,    |    (including SSE
-  |   values)        |     |  including SSE   |     streaming)
-  +------------------+     |  streaming with  |
-                           |  chunk buffering |
-                           +------------------+
-                                  |
-                                  v
-                           Response to app
-                           (real values restored)
+[Install]
+WantedBy=multi-user.target
 ```
 
-**Key design decisions:**
-- **Consistent mappings** -- "Tata Motors" always maps to `ORG_7`, across all documents, queries, and sessions
-- **Encrypted vault** -- Mappings persisted with AES-256-GCM; keys zeroed from memory via `zeroize`
-- **Streaming-aware** -- SSE rehydration handles tokens split across chunks (e.g., `OR` + `G_7`)
-- **Metadata-only audit** -- Logs record entity counts and categories, never the actual values
-
-## Project Structure
-
-| Crate | crates.io | Description |
-|-------|-----------|-------------|
-| [`cloakpipe-cli`](crates/cloakpipe-cli/) | [![crates.io](https://img.shields.io/crates/v/cloakpipe-cli?style=flat-square)](https://crates.io/crates/cloakpipe-cli) | CLI binary (`start`, `test`, `stats`, `init`, `setup`, `mcp`, `tree`, `vector`) |
-| [`cloakpipe-core`](crates/cloakpipe-core/) | [![crates.io](https://img.shields.io/crates/v/cloakpipe-core?style=flat-square)](https://crates.io/crates/cloakpipe-core) | Detection, pseudonymization, vault (file + SQLite), rehydration, industry profiles |
-| [`cloakpipe-proxy`](crates/cloakpipe-proxy/) | [![crates.io](https://img.shields.io/crates/v/cloakpipe-proxy?style=flat-square)](https://crates.io/crates/cloakpipe-proxy) | Axum HTTP proxy (chat completions + embeddings) |
-| [`cloakpipe-audit`](crates/cloakpipe-audit/) | [![crates.io](https://img.shields.io/crates/v/cloakpipe-audit?style=flat-square)](https://crates.io/crates/cloakpipe-audit) | Audit logging (JSONL + SQLite) with rotation |
-| [`cloakpipe-tree`](crates/cloakpipe-tree/) | [![crates.io](https://img.shields.io/crates/v/cloakpipe-tree?style=flat-square)](https://crates.io/crates/cloakpipe-tree) | CloakTree: vectorless document retrieval |
-| [`cloakpipe-vector`](crates/cloakpipe-vector/) | [![crates.io](https://img.shields.io/crates/v/cloakpipe-vector?style=flat-square)](https://crates.io/crates/cloakpipe-vector) | ADCPE: distance-preserving vector encryption |
-| [`cloakpipe-mcp`](crates/cloakpipe-mcp/) | [![crates.io](https://img.shields.io/crates/v/cloakpipe-mcp?style=flat-square)](https://crates.io/crates/cloakpipe-mcp) | MCP server for agentic integrations |
-| [`cloakpipe-local`](crates/cloakpipe-local/) | [![crates.io](https://img.shields.io/crates/v/cloakpipe-local?style=flat-square)](https://crates.io/crates/cloakpipe-local) | Fully local RAG mode (planned) |
-
-## Roadmap
-
-| Version | Feature | Status |
-|---------|---------|--------|
-| v0.1 | Multi-layer detection, consistent pseudonymization, encrypted vault, OpenAI-compatible proxy, SSE streaming, audit logging | **Released** |
-| v0.2 | CloakTree — vectorless, reasoning-based retrieval for structured documents | **Released** |
-| v0.3 | ONNX NER, SQLite vault/audit, multi-user support | **Released** |
-| v0.4 | Distance-preserving vector encryption (ADCPE) | **Released** |
-| v0.5 | Industry profiles, MCP server for agentic integrations, guided setup wizard | **Released** |
-| v0.6 | Fuzzy entity resolution — Jaro-Winkler matching, alias groups | **Released** |
-| v0.7 | Context-aware pseudonymization — session tracking, coreference resolution | **Released** |
-| v0.8 | TEE support (AWS Nitro Enclaves, Intel TDX) | Planned |
-
-## Running Tests
-
-```bash
-cargo test
-```
-
-104 tests covering vault encryption, multi-layer detection, pseudonymization roundtrips, streaming rehydration, SQLite vault/audit, ADCPE vector encryption, industry profiles, MCP server tools, session tracking, and end-to-end proxy behavior.
-
-## Security
-
-CloakPipe handles sensitive data by design. Security considerations:
-
-- **Vault encryption**: All entity mappings are encrypted with AES-256-GCM at rest. Keys are never written to disk.
-- **Memory safety**: Sensitive key material is deterministically zeroed via `zeroize` -- not left to the garbage collector.
-- **Audit trail**: Structured logs record what happened (entity counts, categories, timing) without recording what the entities actually were.
-- **No telemetry**: CloakPipe sends zero data anywhere. The proxy connects only to your configured upstream.
-
-If you discover a security vulnerability, please report it privately via [GitHub Security Advisories](https://github.com/rohansx/cloakpipe/security/advisories/new).
+---
 
 ## Contributing
 
-Contributions are welcome. Please open an issue to discuss your idea before submitting a PR.
+We welcome contributions. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+**Good first issues:**
+- Add new regex pattern for a PII type
+- Improve NER accuracy on Indian names
+- Add integration example (Haystack, LlamaIndex, etc.)
+- Write documentation for a use case
+
+**Development setup:**
 
 ```bash
-# Development build
+git clone https://github.com/rohansx/cloakpipe.git
+cd cloakpipe
 cargo build
-
-# Run tests
 cargo test
-
-# Run with tracing
-RUST_LOG=debug cargo run -- start
+cargo run -p cloakpipe-cli -- serve --port 3100
 ```
+
+---
+
+## Roadmap
+
+- [x] Core proxy with PII detection and masking
+- [x] AES-256-GCM encrypted vault
+- [x] Regex + ONNX NER detection pipeline
+- [x] Jaro-Winkler fuzzy entity resolution
+- [x] India PII support (Aadhaar, PAN, UPI, GSTIN)
+- [x] CloakTree: vectorless LLM-driven retrieval
+- [x] ADCPE distance-preserving vector encryption
+- [x] Industry profiles (legal, healthcare, fintech)
+- [x] MCP server (6 tools)
+- [x] Session-aware pseudonymization + coreference resolution
+- [ ] Anthropic API native format support
+- [ ] Multi-language NER (Hindi, Marathi, Tamil)
+- [ ] WebSocket proxy mode
+- [ ] Custom entity type plugins (WASM)
+- [ ] TEE support (AWS Nitro Enclaves)
+
+---
+
+## Security
+
+CloakPipe is security-focused software. If you find a vulnerability, please report it responsibly:
+
+**Email:** security@cloakpipe.co
+
+Do **not** file a public GitHub issue for security vulnerabilities.
+
+---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE).
+
+The CloakPipe Cloud dashboard and enterprise features are proprietary (BUSL-1.1).
+
+---
+
+<div align="center">
+
+**Built in Rust. Made in Pune, India.**
+
+[Website](https://cloakpipe.co) · [Docs](https://docs.cloakpipe.co) · [Cloud](https://app.cloakpipe.co) · [Twitter](https://twitter.com/cloakpipe) · [Discord](https://discord.gg/cloakpipe)
+
+</div>
